@@ -1,10 +1,61 @@
-import mongoose from "mongoose";
 import Cart, { ICart } from "../models/cartModel";
 import CartItem from "../models/cartItemModel";
-import { IProduct } from "../models/productModel";
-import { UpdateProductStock } from "./productService";
 
-// Traditional relational database approach with separate tables
+
+
+
+export const AddToCart = async (
+  userId: string,
+  productId: string,
+  quantity: number
+) => {
+  try {
+    // Find or create cart
+    let cart: any = await Cart.findOne({ userId });
+    if (!cart) {
+      cart = new Cart({ userId });
+      await cart.save();
+    }
+
+    // Check if item already exists in cart
+    const existingCartItem = await CartItem.findOne({
+      cartId: cart._id,
+      productId: productId,
+    });
+
+    if (existingCartItem) {
+      // Update quantity of existing item
+      existingCartItem.quantity += quantity;
+      await existingCartItem.save();
+    } else {
+      // Create new cart item
+      const newCartItem = new CartItem({
+        cartId: cart._id,
+        productId: productId,
+        quantity: quantity,
+      });
+      await newCartItem.save();
+    }
+
+    // Return cart with populated items
+    const result = await GetCart(userId);
+    return {
+      status: 200,
+      success: true,
+      message: "Item added to cart successfully",
+      data: result.data,
+    };
+  } catch (error: any) {
+    return {
+      status: 500,
+      success: false,
+      message: error.message || "Failed to add item to cart",
+    };
+  }
+};
+
+
+
 export const GetCart = async (userId: string) => {
   try {
     // Find user's cart
@@ -63,55 +114,7 @@ export const GetCart = async (userId: string) => {
   }
 };
 
-export const AddToCart = async (
-  userId: string,
-  productId: string,
-  quantity: number
-) => {
-  try {
-    // Find or create cart
-    let cart: any = await Cart.findOne({ userId });
-    if (!cart) {
-      cart = new Cart({ userId });
-      await cart.save();
-    }
 
-    // Check if item already exists in cart
-    const existingCartItem = await CartItem.findOne({
-      cartId: cart._id,
-      productId: productId,
-    });
-
-    if (existingCartItem) {
-      // Update quantity of existing item
-      existingCartItem.quantity += quantity;
-      await existingCartItem.save();
-    } else {
-      // Create new cart item
-      const newCartItem = new CartItem({
-        cartId: cart._id,
-        productId: productId,
-        quantity: quantity,
-      });
-      await newCartItem.save();
-    }
-
-    // Return cart with populated items
-    const result = await GetCart(userId);
-    return {
-      status: 200,
-      success: true,
-      message: "Item added to cart successfully",
-      data: result.data,
-    };
-  } catch (error: any) {
-    return {
-      status: 500,
-      success: false,
-      message: error.message || "Failed to add item to cart",
-    };
-  }
-};
 
 export const UpdateCartItem = async (
   userId: string,

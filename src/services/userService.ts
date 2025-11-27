@@ -1,7 +1,5 @@
-import { Types } from "mongoose";
 import { UserModel } from "@/models/userModel";
 import { UserRoleModel } from "@/models/UserRoleModel";
-import { RoleModel } from "@/models/roleModel";
 
 export const GetAllUsers = async (req: any) => {
   try {

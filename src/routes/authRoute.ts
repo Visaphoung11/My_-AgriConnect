@@ -22,6 +22,7 @@ const router = express.Router();
  *       201:
  *         description: User registered successfully
  */
+
 router.post("/register", registerController);
 
 /**
@@ -40,6 +41,7 @@ router.post("/register", registerController);
  *       200:
  *         description: Login successful, returns JWT token
  */
+
 router.post("/login", loginController);
 
 export default router;
