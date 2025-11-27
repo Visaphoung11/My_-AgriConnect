@@ -118,96 +118,6 @@ export const GetOrders = async (filters: any = {}) => {
     };
   }
 };
-
-export const GetOrderById = async (id: string, userId: string, userRole: string) => {
-  try {
-    const order = await Order.findById(id)
-      .populate('customerId', 'firstName lastName email');
-
-    if (!order) {
-      return {
-        status: 404,
-        success: false,
-        message: 'Order not found',
-      };
-    }
-
-    // Check permissions: admin/seller can see any order, buyer can see their own
-    if (userRole !== 'ADMIN' && userRole !== 'SELLER' && order.customerId.toString() !== userId) {
-      return {
-        status: 403,
-        success: false,
-        message: 'Forbidden: Not authorized to view this order',
-      };
-    }
-
-    // Get order items separately
-    const orderItems = await OrderItem.find({ orderId: id })
-      .populate('productId', 'name price image');
-
-    return {
-      status: 200,
-      success: true,
-      data: {
-        ...order.toObject(),
-        items: orderItems.map(item => ({
-          _id: item._id,
-          productId: item.productId,
-          quantity: item.quantity,
-          subtotal: item.subtotal,
-        }))
-      },
-    };
-  } catch (error: any) {
-    return {
-      status: 500,
-      success: false,
-      message: error.message || 'Failed to fetch order',
-    };
-  }
-};
-
-export const UpdateOrderStatus = async (id: string, status: string) => {
-  try {
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-
-    if (!validStatuses.includes(status)) {
-      return {
-        status: 400,
-        success: false,
-        message: 'Invalid status',
-      };
-    }
-
-    const updatedOrder = await Order.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedOrder) {
-      return {
-        status: 404,
-        success: false,
-        message: 'Order not found',
-      };
-    }
-
-    return {
-      status: 200,
-      success: true,
-      message: 'Order status updated successfully',
-      data: updatedOrder,
-    };
-  } catch (error: any) {
-    return {
-      status: 500,
-      success: false,
-      message: error.message || 'Failed to update order status',
-    };
-  }
-};
-
 export const GetUserOrders = async (userId: string) => {
   try {
     const orders = await Order.find({ customerId: userId })
@@ -242,44 +152,6 @@ export const GetUserOrders = async (userId: string) => {
       status: 500,
       success: false,
       message: error.message || 'Failed to fetch user orders',
-    };
-  }
-};
-
-export const GetAllOrders = async () => {
-  try {
-    const orders = await Order.find()
-      .sort({ createdAt: -1 })
-      .populate('customerId', 'firstName lastName email');
-
-    // For each order, get its items
-    const ordersWithItems = await Promise.all(
-      orders.map(async (order) => {
-        const orderItems = await OrderItem.find({ orderId: order._id })
-          .populate('productId', 'name price image');
-
-        return {
-          ...order.toObject(),
-          items: orderItems.map(item => ({
-            _id: item._id,
-            productId: item.productId,
-            quantity: item.quantity,
-            subtotal: item.subtotal,
-          }))
-        };
-      })
-    );
-
-    return {
-      status: 200,
-      success: true,
-      data: ordersWithItems,
-    };
-  } catch (error: any) {
-    return {
-      status: 500,
-      success: false,
-      message: error.message || 'Failed to fetch all orders',
     };
   }
 };
@@ -400,49 +272,49 @@ export const Checkout = async (customerId: string, shippingDetails: { customerNa
   }
 };
 
-export const ProcessCheckout = async (customerId: string, shippingDetails: { customerName: string; phone: string; address: string }) => {
-  // This is handled by Checkout function above
-  return Checkout(customerId, shippingDetails);
-};
+// export const ProcessCheckout = async (customerId: string, shippingDetails: { customerName: string; phone: string; address: string }) => {
+//   // This is handled by Checkout function above
+//   return Checkout(customerId, shippingDetails);
+// };
 
-export const DeleteOrder = async (id: string) => {
-  const session = await Order.startSession();
-  session.startTransaction();
+// export const DeleteOrder = async (id: string) => {
+//   const session = await Order.startSession();
+//   session.startTransaction();
 
-  try {
-    // First, find and delete order items
-    await OrderItem.deleteMany({ orderId: id }, { session });
+//   try {
+//     // First, find and delete order items
+//     await OrderItem.deleteMany({ orderId: id }, { session });
 
-    // Then delete the order
-    const deletedOrder = await Order.findByIdAndDelete(id, { session });
+//     // Then delete the order
+//     const deletedOrder = await Order.findByIdAndDelete(id, { session });
 
-    if (!deletedOrder) {
-      await session.abortTransaction();
-      session.endSession();
+//     if (!deletedOrder) {
+//       await session.abortTransaction();
+//       session.endSession();
 
-      return {
-        status: 404,
-        success: false,
-        message: 'Order not found',
-      };
-    }
+//       return {
+//         status: 404,
+//         success: false,
+//         message: 'Order not found',
+//       };
+//     }
 
-    await session.commitTransaction();
-    session.endSession();
+//     await session.commitTransaction();
+//     session.endSession();
 
-    return {
-      status: 200,
-      success: true,
-      message: 'Order deleted successfully',
-    };
-  } catch (error: any) {
-    await session.abortTransaction();
-    session.endSession();
+//     return {
+//       status: 200,
+//       success: true,
+//       message: 'Order deleted successfully',
+//     };
+//   } catch (error: any) {
+//     await session.abortTransaction();
+//     session.endSession();
 
-    return {
-      status: 500,
-      success: false,
-      message: error.message || 'Failed to delete order',
-    };
-  }
-};
+//     return {
+//       status: 500,
+//       success: false,
+//       message: error.message || 'Failed to delete order',
+//     };
+//   }
+// };

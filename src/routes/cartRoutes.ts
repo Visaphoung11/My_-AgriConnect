@@ -53,7 +53,7 @@ router.post("/add", addToCart);
  * @swagger
  * /api/v1/cart:
  *   get:
- *     summary: Get user's cart
+ *     summary: Get user's cart [CartItems]
  *     tags: [Cart]
  *     security:
  *       - bearerAuth: []

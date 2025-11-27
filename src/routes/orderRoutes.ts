@@ -1,9 +1,6 @@
 import { Router } from 'express';
 import {
   getUserOrders,
-  getAllOrders,
-  getOrderById,
-  updateOrderStatus,
   checkout,
 } from '../controllers/orderController';
 import { authenticate, roleCheck } from '@/middlewares/roleMiddleware';
@@ -73,7 +70,7 @@ router.post('/checkout', checkout);
  * @swagger
  * /api/v1/orders/my:
  *   get:
- *     summary: Get current user's orders
+ *     summary: Get current user's orders [OrderItems]
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -94,32 +91,6 @@ router.post('/checkout', checkout);
  */
 router.get('/my', getUserOrders);
 
-/**
- * @swagger
- * /api/v1/orders:
- *   get:
- *     summary: Get all orders (Admin only)
- *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: All orders retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 description: Order details with customer info
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin access required
- *       500:
- *         description: Server error
- */
-router.get('/', roleCheck([UserRole.ADMIN]), getAllOrders);
 
 
 
