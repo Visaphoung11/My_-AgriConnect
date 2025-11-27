@@ -1,8 +1,5 @@
-import Cart, { ICart } from "../models/cartModel";
+import Cart from "../models/cartModel";
 import CartItem from "../models/cartItemModel";
-
-
-
 
 export const AddToCart = async (
   userId: string,
@@ -19,7 +16,7 @@ export const AddToCart = async (
 
     // Check if item already exists in cart
     const existingCartItem = await CartItem.findOne({
-      cartId: cart._id,
+      cartId: cart._id, // cart._id is the ObjectId of the car. In mongo compass it is saved as _id
       productId: productId,
     });
 
@@ -54,8 +51,6 @@ export const AddToCart = async (
   }
 };
 
-
-
 export const GetCart = async (userId: string) => {
   try {
     // Find user's cart
@@ -85,6 +80,7 @@ export const GetCart = async (userId: string) => {
     // Calculate subtotals and total
     let total = 0;
     const itemsWithSubtotals = cartItems.map((item: any) => {
+      // use map to have productId.price
       const subtotal = item.productId.price * item.quantity;
       total += subtotal;
 
@@ -100,7 +96,7 @@ export const GetCart = async (userId: string) => {
       status: 200,
       success: true,
       data: {
-        userId: cart.userId.toString(),
+        userId: cart.userId.toString(), // បំលែង ObjectId → string
         items: itemsWithSubtotals,
         total: total,
       },
@@ -113,8 +109,6 @@ export const GetCart = async (userId: string) => {
     };
   }
 };
-
-
 
 export const UpdateCartItem = async (
   userId: string,

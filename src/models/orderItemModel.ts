@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IOrderItem extends Document {
   orderId: mongoose.Types.ObjectId;
@@ -13,27 +13,27 @@ const orderItemSchema = new Schema<IOrderItem>(
   {
     orderId: {
       type: Schema.Types.ObjectId,
-      ref: 'Order',
-      required: true
+      ref: "Order",
+      required: true,
     },
     productId: {
       type: Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
+      ref: "Product",
+      required: true,
     },
     quantity: {
       type: Number,
       required: true,
-      min: 1
+      min: 1,
     },
     subtotal: {
       type: Number,
       required: true,
-      min: 0
-    }
+      min: 0, // start from 0$
+    },
   },
   { timestamps: true }
 );
 
 // Traditional separate table approach - order items in different collection
-export default mongoose.model<IOrderItem>('OrderItem', orderItemSchema);
+export default mongoose.model<IOrderItem>("OrderItem", orderItemSchema);

@@ -1,143 +1,29 @@
-import Order from '../models/orderModel';
-import OrderItem from '../models/orderItemModel';
-import { UpdateProductStock } from './productService';
+import Order from "../models/orderModel";
+import OrderItem from "../models/orderItemModel";
+import { UpdateProductStock } from "./productService";
 
 // Traditional relational database approach - separate Order and OrderItem tables
-export const CreateOrder = async (orderData: any, customerId: string) => {
-  const session = await Order.startSession();
-  session.startTransaction();
-
-  try {
-    const { items, ...orderDetails } = orderData;
-
-    // Create order
-    const order = new Order({
-      ...orderDetails,
-      customerId,
-      status: 'pending',
-      total: 0, // Will be calculated from items
-    });
-
-    // Calculate total and validate products
-    let total = 0;
-    const orderItems = [];
-
-    for (const item of items) {
-      // Check product availability and get price
-      const productResult = await UpdateProductStock(
-        item.productId,
-        item.quantity,
-        'decrement'
-      );
-
-      if (!productResult.success) {
-        throw new Error(`Product ${item.productId}: ${productResult.message}`);
-      }
-
-      // Type assertion since we know the data exists when success is true
-      const productData = productResult.data!;
-      const subtotal = productData.price * item.quantity;
-      total += subtotal;
-
-      // Create order item
-      const orderItem = {
-        orderId: order._id,
-        productId: item.productId,
-        quantity: item.quantity,
-        subtotal,
-      };
-
-      orderItems.push(orderItem);
-    }
-
-    // Update order total
-    order.total = total;
-
-    // Save order and order items
-    await order.save({ session });
-    await OrderItem.insertMany(orderItems, { session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    // Populate order with items
-    const savedOrder = await Order.findById(order._id);
-
-    return {
-      status: 201,
-      success: true,
-      message: 'Order created successfully',
-      data: savedOrder,
-    };
-  } catch (error: any) {
-    await session.abortTransaction();
-    session.endSession();
-
-    return {
-      status: 500,
-      success: false,
-      message: error.message || 'Failed to create order',
-    };
-  }
-};
-
-export const GetOrders = async (filters: any = {}) => {
-  try {
-    const { status, startDate, endDate, sortBy = 'createdAt', sortOrder = 'desc' } = filters;
-
-    const query: any = {};
-
-    if (status) {
-      query.status = status;
-    }
-
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
-    }
-
-    const sortOption: any = {};
-    sortOption[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-    const orders = await Order.find(query)
-      .sort(sortOption)
-      .populate('customerId', 'firstName lastName email')
-      .populate('customerId');
-
-    return {
-      status: 200,
-      success: true,
-      data: orders,
-    };
-  } catch (error: any) {
-    return {
-      status: 500,
-      success: false,
-      message: error.message || 'Failed to fetch orders',
-    };
-  }
-};
 export const GetUserOrders = async (userId: string) => {
   try {
     const orders = await Order.find({ customerId: userId })
       .sort({ createdAt: -1 })
-      .populate('customerId', 'firstName lastName email');
+      .populate("customerId", "firstName lastName email");
 
     // For each order, get its items
     const ordersWithItems = await Promise.all(
       orders.map(async (order) => {
-        const orderItems = await OrderItem.find({ orderId: order._id })
-          .populate('productId', 'name price image');
+        const orderItems = await OrderItem.find({
+          orderId: order._id,
+        }).populate("productId", "name price image");
 
         return {
           ...order.toObject(),
-          items: orderItems.map(item => ({
+          items: orderItems.map((item) => ({
             _id: item._id,
             productId: item.productId,
             quantity: item.quantity,
             subtotal: item.subtotal,
-          }))
+          })),
         };
       })
     );
@@ -151,28 +37,35 @@ export const GetUserOrders = async (userId: string) => {
     return {
       status: 500,
       success: false,
-      message: error.message || 'Failed to fetch user orders',
+      message: error.message || "Failed to fetch user orders",
     };
   }
 };
 
-export const Checkout = async (customerId: string, shippingDetails: { customerName: string; phone: string; address: string }) => {
+export const Checkout = async (
+  customerId: string,
+  shippingDetails: { customerName: string; phone: string; address: string }
+) => {
   const session = await Order.startSession();
   session.startTransaction();
 
   try {
-    // Get user's cart using cart service (avoid circular import by dynamic import)
-    const cartService = await import('./cartService');
+    // Get user's cart using cart service
+    const cartService = await import("./cartService");
     const cartResult = await cartService.GetCart(customerId);
 
-    if (!cartResult.success || !cartResult.data || cartResult.data.items.length === 0) {
-      await session.abortTransaction();
+    if (
+      !cartResult.success ||
+      !cartResult.data ||
+      cartResult.data.items.length === 0
+    ) {
+      await session.abortTransaction(); // meaning start transaction
       session.endSession();
 
       return {
         status: 400,
         success: false,
-        message: 'Cart is empty',
+        message: "Cart is empty",
       };
     }
 
@@ -183,16 +76,17 @@ export const Checkout = async (customerId: string, shippingDetails: { customerNa
 
     // Create the order first
     const order = new Order({
+      // create new order
       ...shippingDetails,
       customerId,
-      status: 'pending',
+      status: "pending",
       total: 0, // Will be calculated
     });
 
     // Save order first to get _id
     await order.save({ session });
 
-    // Create order items in separate collection
+    // loop cartItems
     const orderItems = [];
     for (const item of cart.items) {
       const productId = item.productId._id || item.productId;
@@ -201,7 +95,7 @@ export const Checkout = async (customerId: string, shippingDetails: { customerNa
       const productResult = await UpdateProductStock(
         productId,
         item.quantity,
-        'decrement'
+        "decrement"
       );
 
       if (!productResult.success) {
@@ -238,16 +132,21 @@ export const Checkout = async (customerId: string, shippingDetails: { customerNa
     session.endSession();
 
     // Populate order with items and product details
-    const savedOrder = await Order.findById(order._id)
-      .populate('customerId', 'firstName lastName email');
+    const savedOrder = await Order.findById(order._id).populate(
+      "customerId",
+      "firstName lastName email"
+    );
 
     // Get order items separately
-    const orderItemsPopulated = await OrderItem.find({ orderId: order._id })
-      .populate('productId', 'name price image');
+    const orderItemsPopulated = await OrderItem.find({
+      orderId: order._id,
+    }).populate("productId", "name price image");
 
     // Combine for response
-    const populatedOrder = savedOrder!.toObject();
-    (populatedOrder as any).items = orderItemsPopulated.map(item => ({
+    const populatedOrder = savedOrder!.toObject(); // savedOrder! = is not null here./**
+    // toObject() converts a Mongoose document into a plain JavaScript object
+    // (no Mongoose methods), so you can safely add fields (like items) and return it in JSON. */
+    (populatedOrder as any).items = orderItemsPopulated.map((item) => ({
       _id: item._id,
       productId: item.productId,
       quantity: item.quantity,
@@ -257,7 +156,7 @@ export const Checkout = async (customerId: string, shippingDetails: { customerNa
     return {
       status: 201,
       success: true,
-      message: 'Order placed successfully from cart',
+      message: "Order placed successfully from cart",
       data: populatedOrder,
     };
   } catch (error: any) {
@@ -267,54 +166,7 @@ export const Checkout = async (customerId: string, shippingDetails: { customerNa
     return {
       status: 500,
       success: false,
-      message: error.message || 'Failed to process checkout',
+      message: error.message || "Failed to process checkout",
     };
   }
 };
-
-// export const ProcessCheckout = async (customerId: string, shippingDetails: { customerName: string; phone: string; address: string }) => {
-//   // This is handled by Checkout function above
-//   return Checkout(customerId, shippingDetails);
-// };
-
-// export const DeleteOrder = async (id: string) => {
-//   const session = await Order.startSession();
-//   session.startTransaction();
-
-//   try {
-//     // First, find and delete order items
-//     await OrderItem.deleteMany({ orderId: id }, { session });
-
-//     // Then delete the order
-//     const deletedOrder = await Order.findByIdAndDelete(id, { session });
-
-//     if (!deletedOrder) {
-//       await session.abortTransaction();
-//       session.endSession();
-
-//       return {
-//         status: 404,
-//         success: false,
-//         message: 'Order not found',
-//       };
-//     }
-
-//     await session.commitTransaction();
-//     session.endSession();
-
-//     return {
-//       status: 200,
-//       success: true,
-//       message: 'Order deleted successfully',
-//     };
-//   } catch (error: any) {
-//     await session.abortTransaction();
-//     session.endSession();
-
-//     return {
-//       status: 500,
-//       success: false,
-//       message: error.message || 'Failed to delete order',
-//     };
-//   }
-// };
